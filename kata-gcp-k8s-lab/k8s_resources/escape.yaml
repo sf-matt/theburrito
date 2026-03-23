@@ -1,0 +1,64 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: normal-escape
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: normal-escape
+  template:
+    metadata:
+      labels:
+        app: normal-escape
+        mode: normal
+    spec:
+      containers:
+      hostPID: true
+      containers:
+        - name: escape
+          image: nicolaka/netshoot:latest
+          command: ["sleep", "3600"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kata-escape
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kata-escape
+  template:
+    metadata:
+      labels:
+        app: kata-escape
+        mode: kata
+    spec:
+      runtimeClassName: kata-qemu
+      containers:
+      hostPID: true
+      containers:
+        - name: escape
+          image: nicolaka/netshoot:latest
+          command: ["sleep", "3600"]
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: host-root
+              mountPath: /host
+      volumes:
+        - name: host-root
+          hostPath:
+            path: /
+            type: Directory

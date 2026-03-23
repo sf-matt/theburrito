@@ -1,0 +1,70 @@
+############################
+# Terraform
+############################
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
+
+############################
+# Kubernetes / kubeconfig
+############################
+kubeconfig
+*.kubeconfig
+.kube/
+kubeconfig.yaml
+
+############################
+# Secrets / sensitive files
+############################
+.env
+.env.*
+*.key
+*.pem
+*.crt
+*.p12
+secrets.yaml
+*secret*.yaml
+
+############################
+# Helm
+############################
+charts/
+*.tgz
+
+############################
+# Logs / temp files
+############################
+*.log
+tmp/
+temp/
+*.tmp
+
+############################
+# OS / editor junk
+############################
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+############################
+# Python (for your Flask app, etc.)
+############################
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+############################
+# Misc
+############################
+*.bak
+*.backup
