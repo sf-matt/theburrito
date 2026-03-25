@@ -13,7 +13,6 @@ spec:
         app: normal-escape
         mode: normal
     spec:
-      containers:
       hostPID: true
       containers:
         - name: escape
@@ -46,7 +45,6 @@ spec:
         mode: kata
     spec:
       runtimeClassName: kata-qemu
-      containers:
       hostPID: true
       containers:
         - name: escape
