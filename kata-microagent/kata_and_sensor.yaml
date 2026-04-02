@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kata-app
+  namespace: kata-demo
+  labels:
+    app: kata-app
+spec:
+  runtimeClassName: kata-qemu
+  shareProcessNamespace: true
+  restartPolicy: Never
+  containers:
+    - name: app
+      image: debian:stable-slim
+      imagePullPolicy: Always
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          sleep 3600
+
+    - name: sensor
+      image: sfmatt/kata-sensor:latest
+      imagePullPolicy: Always
+      env:
+        - name: RECEIVER_URL
+          value: "http://kata-receiver.kata-demo.svc.cluster.local:8080/events"
+        - name: POLL_INTERVAL
+          value: "2"
+        - name: HEARTBEAT_INTERVAL
+          value: "15"
+        - name: MODE
+          value: "kata"
+        - name: EXPECTED_PROCESSES
+          value: "sleep"
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace

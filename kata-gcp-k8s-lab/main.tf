@@ -34,7 +34,7 @@ resource "google_compute_instance" "kata_node" {
   zone         = var.zone
 
   min_cpu_platform = var.min_cpu_platform
-  tags             = ["${var.name}-ssh"]
+  tags             = ["${var.name}-ssh", "kata-k8s-node"]
 
   boot_disk {
     initialize_params {
