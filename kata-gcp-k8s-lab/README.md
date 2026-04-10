@@ -1,4 +1,4 @@
-# Kata on GCP with K3s
+# Kata on GCP with K8s
 
 This Terraform creates a single GCE VM suitable for a Kata lab:
 - nested virtualization enabled
