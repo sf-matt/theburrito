@@ -1,0 +1,5 @@
+# TLS certs (generated locally)
+server/cert.pem
+server/key.pem
+certs-tmp/
+ca.crt
