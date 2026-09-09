@@ -32,5 +32,6 @@ After a publish workflow completes, pull it from GHCR:
 docker pull ghcr.io/sf-matt/basic-flask-app:latest
 ```
 
-The workflow publishes `latest` from the default branch, a short commit SHA
-tag, and version tags when run against a tag such as `v1.0.0`.
+The image supports `linux/amd64` and `linux/arm64`. The workflow publishes
+`latest` from the default branch, a short commit SHA tag, and version tags when
+run against a tag such as `v1.0.0`.
