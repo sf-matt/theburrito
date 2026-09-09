@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: webhook
-          image: <your-username>/webhook-server:latest
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/sf-matt/raw-k8s-admission-webhook:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 443
           volumeMounts:

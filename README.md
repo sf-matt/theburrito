@@ -54,6 +54,12 @@ for `linux/amd64` and `linux/arm64` at:
 ghcr.io/sf-matt/basic-flask-app
 ```
 
+The admission webhook publishes the same architectures at:
+
+```text
+ghcr.io/sf-matt/raw-k8s-admission-webhook
+```
+
 Prefer immutable SHA tags or image digests in repeatable labs. Treat `latest`
 as a convenience for short-lived experiments only.
 

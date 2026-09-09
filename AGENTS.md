@@ -31,6 +31,14 @@
 - Preserve the author's conversational voice. Prefer factual, scoped edits over
   style-only rewrites.
 
+## AI Attribution
+
+- Keep the root README's OpenAI Codex acknowledgment intact.
+- When Codex materially contributes to a change, disclose that assistance in
+  the pull request summary and describe the work it helped perform.
+- Keep authorship and responsibility accurate: the maintainer owns architecture,
+  review, validation, publication, and release decisions.
+
 ## Dependencies and Reproducibility
 
 - Pin dependencies, container images, downloaded manifests, and tools when
