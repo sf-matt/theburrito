@@ -1,127 +1,144 @@
-# raw-k8s-admission-webhooks
+# Raw Kubernetes Admission Webhook
 
-This project contains a minimal, working Kubernetes **Validating Admission Webhook**, built from scratch using Python (Flask) and served over HTTPS.
+A minimal Kubernetes `ValidatingAdmissionWebhook` built with Python and Flask.
+It denies creation of Pods whose names contain `badpod` and allows other Pod
+creation requests.
 
-The webhook denies any pod whose name contains the string `badpod`. It's designed to demonstrate how Kubernetes admission control works without relying on higher-level tools like Kyverno or Gatekeeper.
+This is an educational demonstration of the admission request and response
+flow. It is not a production webhook.
 
----
+## Prerequisites
+
+- Docker or another OCI-compatible image builder
+- A container registry accessible by the cluster
+- `kubectl` access to an isolated test cluster
+- OpenSSL and a shell with `base64`
+
+The example installs resources in the `default` namespace and registers a
+cluster-scoped webhook configuration. Review the manifests before continuing.
 
 ## Project Structure
 
-```
+```text
 raw-k8s-admission-webhooks/
-├── certs/                  # TLS generation script
+├── certs/
 │   └── generate-certs.sh
-├── server/                 # Webhook server code and Dockerfile
-│   ├── app.py
-│   ├── requirements.txt
-│   └── Dockerfile
-├── manifests/              # Kubernetes resources
+├── manifests/
+│   ├── bad-pod.yaml
 │   ├── deployment.yaml
 │   ├── service.yaml
-│   ├── webhook.yaml
-│   ├── test-pod.yaml
-├── ca.crt                  # Base64-encoded into webhook config
-└── README.md               # You're here
+│   └── webhook.yaml
+├── server/
+│   ├── app.py
+│   ├── Dockerfile
+│   └── requirements.txt
+└── README.md
 ```
 
----
+## 1. Generate TLS Certificates
 
-## Getting Started
-
-### 1. Generate TLS Certificates
-
-Run the following script:
+From this directory, run:
 
 ```bash
-chmod +x certs/generate-certs.sh
 ./certs/generate-certs.sh
 ```
 
-This will generate TLS certs for `webhook.default.svc` and place them into:
+The script creates:
+
 - `server/cert.pem`
 - `server/key.pem`
-- `ca.crt` (used for `caBundle`)
+- `ca.crt`
 
+These generated files are ignored by Git. The script also prints the
+base64-encoded CA certificate needed by the webhook configuration.
 
-### 2. Build and Push Docker Image
+## 2. Build and Push the Image
 
-Build the image (if not using Dockerhub just use your registry):
+Choose an image name and immutable tag in a registry your cluster can pull:
 
 ```bash
-docker build -t docker.io/<your-username/webhook-server/<your-username>/webhook-server:latest ./server
-docker push docker.io/<your-username>/webhook-server:latest
+export WEBHOOK_IMAGE="YOUR_REGISTRY/webhook-server:YOUR_TAG"
+docker build -t "$WEBHOOK_IMAGE" ./server
+docker push "$WEBHOOK_IMAGE"
 ```
 
-Update the image reference in `manifests/deployment.yaml`.
+Replace the placeholder image in `manifests/deployment.yaml` with that exact
+reference.
 
+## 3. Create the TLS Secret
 
-### 3. Create the TLS Secret in Kubernetes
+The Deployment mounts this Secret at `/app/certs`, which matches the paths used
+by the Flask server:
 
 ```bash
 kubectl create secret generic webhook-certs \
   --from-file=cert.pem=server/cert.pem \
   --from-file=key.pem=server/key.pem \
-  -n default
+  --namespace default
 ```
 
-### 4. Deploy the Webhook
-
-Apply the deployment and service:
+## 4. Deploy the Server
 
 ```bash
 kubectl apply -f manifests/deployment.yaml
 kubectl apply -f manifests/service.yaml
+kubectl rollout status deployment/webhook --namespace default
 ```
 
-Confirm the pod is running:
+## 5. Register the Webhook
 
-```bash
-kubectl get pods -l app=webhook
-```
-
-
-### 5. Register the Admission Webhook
-
-Edit `manifests/webhook.yaml` and replace:
-
-```yaml
-caBundle: <REPLACE_WITH_BASE64_CA>
-```
-
-with the base64 output printed by the cert script. Then apply:
+Replace `<REPLACE_WITH_BASE64_CA>` in `manifests/webhook.yaml` with the CA value
+printed by the certificate script, then run:
 
 ```bash
 kubectl apply -f manifests/webhook.yaml
 ```
 
+The configuration uses `failurePolicy: Fail`. If the webhook is registered but
+unavailable, matching Pod creation requests can fail. Keep a separate terminal
+available for cleanup.
 
-### 6. Test It
-
-Apply the test pod:
+## 6. Verify the Behavior
 
 ```bash
-kubectl apply -f manifests/test-pod.yaml
+kubectl apply -f manifests/bad-pod.yaml
 ```
 
-You should see:
+Expected result:
 
-```bash
+```text
 Error from server: admission webhook "deny.badpod.webhook.dev" denied the request: Pod name 'badpod-test' is not allowed.
 ```
 
----
+Confirm that another Pod name is allowed before treating the demo as verified.
 
-## Security Notes
+```bash
+kubectl run goodpod \
+  --image=busybox:1.36.1 \
+  --restart=Never \
+  -- sleep 3600
+kubectl get pod goodpod
+```
 
-- The image **mounts TLS certs from a Secret** instead of baking them in
-- Flask runs under a non-root user (`USER webhook` in Dockerfile)
-- No secrets are committed to Git
+## Cleanup
 
----
+Remove the cluster-scoped webhook first so it cannot block later Pod creation:
 
-## Next Ideas
+```bash
+kubectl delete -f manifests/webhook.yaml
+kubectl delete -f manifests/deployment.yaml
+kubectl delete -f manifests/service.yaml
+kubectl delete pod goodpod --ignore-not-found
+kubectl delete secret webhook-certs --namespace default
+```
 
-- Add a **Mutating Admission Webhook**
-- Extend logic to match labels, namespaces, or container images
-- Visualize webhook flow in a diagram
+## Limitations and Security Notes
+
+- The server performs only a small name check and assumes a valid AdmissionReview
+  request. Malformed requests can produce an application error.
+- TLS material is generated locally and injected through a Kubernetes Secret;
+  it is not baked into the container image.
+- The current container runs as root and uses Flask's development server.
+- The example has no availability design, certificate rotation, metrics,
+  resource limits, or hardened Pod security context.
+- Deploy only in a disposable or isolated cluster.
