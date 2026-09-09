@@ -52,18 +52,24 @@ The script creates:
 These generated files are ignored by Git. The script also prints the
 base64-encoded CA certificate needed by the webhook configuration.
 
-## 2. Build and Push the Image
+## 2. Get the Image
 
-Choose an image name and immutable tag in a registry your cluster can pull:
+The project publishes one multi-architecture image for `linux/amd64` and
+`linux/arm64` to GHCR:
 
 ```bash
-export WEBHOOK_IMAGE="YOUR_REGISTRY/webhook-server:YOUR_TAG"
-docker build -t "$WEBHOOK_IMAGE" ./server
-docker push "$WEBHOOK_IMAGE"
+docker pull ghcr.io/sf-matt/raw-k8s-admission-webhook:latest
 ```
 
-Replace the placeholder image in `manifests/deployment.yaml` with that exact
-reference.
+The checked-in Deployment uses this image. The publishing workflow also creates
+an immutable `sha-<commit>` tag; prefer that tag or its digest when reproducing
+a specific run.
+
+To build it locally instead:
+
+```bash
+docker build -t raw-k8s-admission-webhook:local ./server
+```
 
 ## 3. Create the TLS Secret
 
