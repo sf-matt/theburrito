@@ -12,6 +12,7 @@ The goal is simple:
 | Project | Purpose | Status | Risk |
 | --- | --- | --- | --- |
 | [`basic-flask-app`](./basic-flask-app/) | Reusable one-route Flask container for demos | Published to GHCR for AMD64 and ARM64 | Low |
+| [`image-signing-admission`](./image-signing-admission/) | Establish an unsigned control image for image-signing and admission experiments | Experimental unsigned baseline | Low: intentionally unsigned artifact |
 | [`kata-gcp-k8s-lab`](./kata-gcp-k8s-lab/) | Create a single-node Kubernetes and Kata Containers lab on GCP | Experimental lab | High: creates billable cloud resources and exposes intentionally unsafe workloads |
 | [`kata-microagent`](./kata-microagent/) | Explore lightweight process monitoring beside a Kata workload | Proof of concept | High: unauthenticated receiver and heuristic detections |
 | [`raw-k8s-admission-webhooks`](./raw-k8s-admission-webhooks/) | Build a validating admission webhook without a policy framework | Educational demo | Medium: cluster-wide admission behavior |
