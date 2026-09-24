@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.git/
+.venv/
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+credentials/
+*credentials*.json
+test_app.py
