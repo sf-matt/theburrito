@@ -72,3 +72,25 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Generate signing-candidate tags and labels
+        id: candidate-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=signing-candidate
+            type=sha,prefix=signing-candidate-sha-
+
+      - name: Build and publish signing candidate
+        uses: docker/build-push-action@v6
+        with:
+          context: image-signing-admission
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            DEMO_VARIANT=signing-candidate
+          push: true
+          tags: ${{ steps.candidate-meta.outputs.tags }}
+          labels: ${{ steps.candidate-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
