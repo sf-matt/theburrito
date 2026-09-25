@@ -1,0 +1,54 @@
+apiVersion: policies.kyverno.io/v1
+kind: NamespacedImageValidatingPolicy
+metadata:
+  name: verify-image-signature
+  namespace: image-signing-kyverno
+spec:
+  webhookConfiguration:
+    timeoutSeconds: 15
+
+  failurePolicy: Fail
+  validationActions:
+    - Deny
+
+  evaluation:
+    background:
+      enabled: false
+
+  matchConstraints:
+    resourceRules:
+      - apiGroups:
+          - ""
+        apiVersions:
+          - v1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - pods
+
+  matchImageReferences:
+    - glob: "ghcr.io/sf-matt/image-signing-admission*"
+
+  validationConfigurations:
+    required: true
+    verifyDigest: true
+    mutateDigest: false
+
+  attestors:
+    - name: cosign
+      cosign:
+        key:
+          data: |
+            -----BEGIN PUBLIC KEY-----
+            MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXcaJDjcZvg7k1awLoNYVMbK1pm2r
+            lMfZt6tL8dpJnUTQzd7YppdpRjWqdYW6HaeaFWnXawCqf884+Ju/4+Gw7Q==
+            -----END PUBLIC KEY-----
+
+  validations:
+    - expression: >-
+        images.containers
+          .map(image, verifyImageSignatures(image, [attestors.cosign]))
+          .all(result, result > 0)
+      message: >-
+        The image must have a valid Cosign signature from the trusted key.
