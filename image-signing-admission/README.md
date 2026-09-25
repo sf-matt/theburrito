@@ -19,14 +19,15 @@ controller or policy.
 - For publication only, permission to publish the target GHCR package and a
   GitHub classic personal access token (PAT) with `write:packages`
 
-The repository workflow is the canonical publisher. After these files reach
-`main`, `.github/workflows/publish-image-signing-admission.yml` tests the app,
+The repository workflow is the canonical publisher for the unsigned control.
+After these files reach `main`,
+`.github/workflows/publish-image-signing-admission.yml` tests the app and
 publishes the `unsigned` and immutable `sha-<commit>` tags with the repository's
-`GITHUB_TOKEN`. It also publishes separate `signing-candidate` and immutable
-`signing-candidate-sha-<commit>` tags. Both artifacts are unsigned when the
-workflow publishes them, and the GHCR package remains connected to this
-repository. The workflow can also be started manually with `workflow_dispatch`
-after it exists on the default branch.
+`GITHUB_TOKEN`. It deliberately does not build or sign the signing candidate.
+That artifact is built, pushed, and signed manually so a workflow rerun cannot
+silently replace the digest used by the admission tests. The workflow can also
+be started manually with `workflow_dispatch` after it exists on the default
+branch.
 
 ## Test with Python
 
@@ -67,16 +68,15 @@ Stop the foreground container with `Ctrl-C` when finished.
 
 ## Authenticate to GHCR for a manual publish
 
-Create a classic PAT with `write:packages`. Read it without echoing it, pass it
-to Docker through standard input, and remove it from the shell environment:
+Create a classic PAT with `write:packages`, then log in interactively:
 
 ```bash
-read -s GHCR_PAT
-printf '%s' "${GHCR_PAT}" | docker login ghcr.io --username sf-matt --password-stdin
-unset GHCR_PAT
+docker login ghcr.io --username sf-matt
 ```
 
-Do not put the PAT in a command argument, file, shell history, image, or Git.
+At Docker's `Password:` prompt, paste the PAT rather than your GitHub account
+password. The token will not appear while you paste or type it. Do not put the
+PAT in a command argument, file, shell history, image, or Git.
 
 ## Manually publish the multi-platform unsigned image
 
@@ -133,24 +133,38 @@ provenance attestations and do not replace either runnable image manifest.
 
 ## Prepare the signing candidate
 
-The article preserves `sha-51f4df6` as its unsigned control. The
-`signing-candidate` tag identifies a separately built digest intended for the
-manual signing exercise. Publishing the candidate does not sign it. Its
-`io.cloudsecburrito.cosign-demo=signing-candidate` label also ensures its image
+The article preserves `sha-51f4df6` as its unsigned control. Build and push a
+separate multi-platform candidate from this directory. Use a versioned manual
+tag and do not overwrite it; use a new version for a future candidate. The
+`io.cloudsecburrito.cosign-demo=signing-candidate` label ensures its image
 configuration differs from the unsigned control.
-
-After the workflow publishes both artifacts, resolve their tags to immutable
-top-level index digests and confirm that they differ:
 
 ```bash
 cd /Users/mateo/Desktop/theburrito/image-signing-admission
 
 IMAGE="ghcr.io/sf-matt/image-signing-admission"
+SIGNING_TAG="${IMAGE}:manual-signing-candidate-v1"
 
-UNSIGNED_DIGEST=$(crane digest "${IMAGE}:sha-51f4df6")
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --build-arg DEMO_VARIANT=signing-candidate \
+  --tag "${SIGNING_TAG}" \
+  --push \
+  .
+```
+
+The push stores the image in GHCR so Cosign, Kyverno, and Sigstore
+policy-controller can all retrieve the same digest and its signature. Resolve
+both artifacts to immutable top-level index digests and confirm that they
+differ:
+
+```bash
+UNSIGNED_TAG="${IMAGE}:sha-51f4df6"
+
+UNSIGNED_DIGEST=$(crane digest "${UNSIGNED_TAG}")
 UNSIGNED_REF="${IMAGE}@${UNSIGNED_DIGEST}"
 
-SIGNED_DIGEST=$(crane digest "${IMAGE}:signing-candidate")
+SIGNED_DIGEST=$(crane digest "${SIGNING_TAG}")
 SIGNED_REF="${IMAGE}@${SIGNED_DIGEST}"
 
 printf 'Unsigned control:  %s\n' "${UNSIGNED_REF}"
@@ -171,18 +185,12 @@ cosign generate-key-pair
 ```
 
 `cosign.key` is private key material and must never enter Git. This project's
-`.gitignore` excludes it. `cosign.pub` is the public verification key and will
-eventually be committed after the signing evidence is captured.
+`.gitignore` excludes it. `cosign.pub` is the committed public verification key
+used by the admission policies.
 
-Authenticate without printing or storing the classic PAT, then sign only the
-candidate's immutable digest:
+Sign only the candidate's immutable digest:
 
 ```bash
-read -s GHCR_PAT
-printf '%s' "${GHCR_PAT}" |
-  docker login ghcr.io --username sf-matt --password-stdin
-unset GHCR_PAT
-
 cosign sign \
   --recursive \
   --key cosign.key \
@@ -197,9 +205,8 @@ cosign verify --key cosign.pub "${UNSIGNED_REF}"
 ```
 
 The candidate verification must succeed, while verification of the preserved
-unsigned control must fail. After capturing that evidence, commit only
-`image-signing-admission/cosign.pub`; never commit `cosign.key`. Signatures stay
-attached to the candidate digest in GHCR rather than being committed here.
+unsigned control must fail. Signatures stay attached to the candidate digest in
+GHCR rather than being committed here. Never commit `cosign.key`.
 
 ## Expected results
 
@@ -227,10 +234,10 @@ org.opencontainers.image.source=https://github.com/sf-matt/theburrito
 
 ## Limitations and risks
 
-- Both workflow-built images are deliberately unsigned at publication; neither
-  should be treated as trusted because of its tag or label.
-- The workflow contains no signing keys, signatures, admission policies,
-  cluster manifests, or signed-image automation.
+- The workflow-built control is deliberately unsigned and should not be treated
+  as trusted because of its tag or label.
+- The workflow contains no signing keys or signed-image automation. Admission
+  policy manifests remain separate from the publication job.
 - A tag is mutable. Use `UNSIGNED_REF` when a later experiment must identify
   the exact published index.
 - Publishing changes external GHCR state and may expose the package according
