@@ -5,7 +5,10 @@ on:
     branches:
       - main
     paths:
-      - "image-signing-admission/**"
+      - "image-signing-admission/.dockerignore"
+      - "image-signing-admission/Dockerfile"
+      - "image-signing-admission/app.py"
+      - "image-signing-admission/requirements.txt"
       - ".github/workflows/publish-image-signing-admission.yml"
   workflow_dispatch:
 
