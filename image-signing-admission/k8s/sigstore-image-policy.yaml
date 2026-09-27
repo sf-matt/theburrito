@@ -1,0 +1,23 @@
+apiVersion: policy.sigstore.dev/v1beta1
+kind: ClusterImagePolicy
+metadata:
+  name: verify-image-signature
+spec:
+  mode: enforce
+
+  match:
+    - resource: pods
+      version: v1
+
+  images:
+    - glob: "ghcr.io/sf-matt/image-signing-admission**"
+
+  authorities:
+    - name: cosign-public-key
+      signatureFormat: legacy
+      key:
+        data: |
+          -----BEGIN PUBLIC KEY-----
+          MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEXcaJDjcZvg7k1awLoNYVMbK1pm2r
+          lMfZt6tL8dpJnUTQzd7YppdpRjWqdYW6HaeaFWnXawCqf884+Ju/4+Gw7Q==
+          -----END PUBLIC KEY-----
