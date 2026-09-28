@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-set -euxo pipefail
+set -Eeuo pipefail
 
-USERNAME="${username}"
-K8S_VERSION="v1.32"
+KUBERNETES_MINOR="v1.36"
+KUBERNETES_PACKAGE_VERSION="1.36.4-1.1"
+FLANNEL_VERSION="v0.28.9"
+HELM_VERSION="v4.3.0"
+HELM_SHA256="86584a54def73570558f66f5111cc53dfed56689637ae32c1201205d494f54fb"
 POD_CIDR="10.244.0.0/16"
 
 export DEBIAN_FRONTEND=noninteractive
@@ -11,12 +14,11 @@ apt-get update
 apt-get install -y \
   apt-transport-https \
   ca-certificates \
+  containerd \
   curl \
-  gpg \
-  jq \
   git \
-  vim \
-  software-properties-common
+  gpg \
+  jq
 
 swapoff -a
 sed -i '/ swap / s/^/#/' /etc/fstab || true
@@ -37,53 +39,60 @@ EOF
 
 sysctl --system
 
-apt-get update
-apt-get install -y containerd
-
 mkdir -p /etc/containerd
 containerd config default >/etc/containerd/config.toml
 sed -i 's/SystemdCgroup = false/SystemdCgroup = true/' /etc/containerd/config.toml
 
-systemctl daemon-reload
-systemctl enable containerd
-systemctl restart containerd
+systemctl enable --now containerd
 
 mkdir -p /etc/apt/keyrings
-curl -fsSL "https://pkgs.k8s.io/core:/stable:/$K8S_VERSION/deb/Release.key" \
+curl -fsSL "https://pkgs.k8s.io/core:/stable:/${KUBERNETES_MINOR}/deb/Release.key" \
   | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 
 cat >/etc/apt/sources.list.d/kubernetes.list <<EOF
-deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/$K8S_VERSION/deb/ /
+deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/${KUBERNETES_MINOR}/deb/ /
 EOF
 
 apt-get update
-apt-get install -y kubelet kubeadm kubectl
-apt-mark hold kubelet kubeadm kubectl
+apt-get install -y \
+  kubeadm="${KUBERNETES_PACKAGE_VERSION}" \
+  kubectl="${KUBERNETES_PACKAGE_VERSION}" \
+  kubelet="${KUBERNETES_PACKAGE_VERSION}"
+apt-mark hold kubeadm kubectl kubelet
 
 systemctl enable kubelet
 
-PRIVATE_IP="$(hostname -I | awk '{print $1}')"
-ADVERTISE_IP="$PRIVATE_IP"
+ADVERTISE_IP="$(curl -fsS \
+  -H 'Metadata-Flavor: Google' \
+  'http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/ip')"
 
 kubeadm init \
-  --pod-network-cidr="$POD_CIDR" \
-  --apiserver-advertise-address="$ADVERTISE_IP" \
+  --kubernetes-version="v${KUBERNETES_PACKAGE_VERSION%-1.1}" \
+  --pod-network-cidr="${POD_CIDR}" \
+  --apiserver-advertise-address="${ADVERTISE_IP}" \
   --cri-socket=unix:///run/containerd/containerd.sock
 
 mkdir -p /root/.kube
-cp /etc/kubernetes/admin.conf /root/.kube/config
-
-if id "$USERNAME" >/dev/null 2>&1; then
-  mkdir -p "/home/$USERNAME/.kube"
-  cp /etc/kubernetes/admin.conf "/home/$USERNAME/.kube/config"
-  chown -R "$USERNAME:$USERNAME" "/home/$USERNAME/.kube"
-fi
-
+install -m 0600 /etc/kubernetes/admin.conf /root/.kube/config
 export KUBECONFIG=/etc/kubernetes/admin.conf
 
 kubectl taint nodes --all node-role.kubernetes.io/control-plane- || true
-kubectl apply -f https://github.com/flannel-io/flannel/releases/latest/download/kube-flannel.yml
+kubectl apply -f "https://github.com/flannel-io/flannel/releases/download/${FLANNEL_VERSION}/kube-flannel.yml"
+kubectl rollout status daemonset/kube-flannel-ds \
+  --namespace kube-flannel \
+  --timeout=5m
+kubectl wait --for=condition=Ready node --all --timeout=5m
 
-sleep 30
+HELM_TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "${HELM_TMP_DIR}"' EXIT
+HELM_ARCHIVE="${HELM_TMP_DIR}/helm.tar.gz"
 
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+curl -fsSL \
+  "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
+  -o "${HELM_ARCHIVE}"
+printf '%s  %s\n' "${HELM_SHA256}" "${HELM_ARCHIVE}" | sha256sum --check --status
+tar -xzf "${HELM_ARCHIVE}" -C "${HELM_TMP_DIR}"
+install -m 0755 "${HELM_TMP_DIR}/linux-amd64/helm" /usr/local/bin/helm
+
+kubectl version
+helm version

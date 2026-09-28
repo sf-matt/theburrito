@@ -4,7 +4,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "~> 6.0"
+      version = "6.50.0"
     }
   }
 }
@@ -17,7 +17,7 @@ provider "google" {
 
 resource "google_compute_firewall" "ssh" {
   name    = "${var.name}-allow-ssh"
-  network = "default"
+  network = var.network
 
   allow {
     protocol = "tcp"
@@ -33,8 +33,7 @@ resource "google_compute_instance" "kata_node" {
   machine_type = var.machine_type
   zone         = var.zone
 
-  min_cpu_platform = var.min_cpu_platform
-  tags             = ["${var.name}-ssh", "kata-k8s-node"]
+  tags = ["${var.name}-ssh", "kata-k8s-node"]
 
   boot_disk {
     initialize_params {
@@ -55,15 +54,16 @@ resource "google_compute_instance" "kata_node" {
   }
 
   metadata = {
-    enable-oslogin = var.enable_oslogin ? "TRUE" : "FALSE"
+    enable-oslogin         = var.enable_oslogin ? "TRUE" : "FALSE"
+    block-project-ssh-keys = var.enable_oslogin ? "TRUE" : "FALSE"
   }
 
-  metadata_startup_script = templatefile("${path.module}/startup.sh", {
-    username = var.username
-  })
+  metadata_startup_script = file("${path.module}/startup.sh")
 
-  service_account {
-    scopes = ["cloud-platform"]
+  shielded_instance_config {
+    enable_integrity_monitoring = true
+    enable_secure_boot          = false
+    enable_vtpm                 = true
   }
 
   scheduling {

@@ -18,19 +18,13 @@ variable "region" {
 variable "zone" {
   description = "GCP zone."
   type        = string
-  default     = "us-central1-f"
+  default     = "us-central1-a"
 }
 
 variable "machine_type" {
   description = "GCE machine type."
   type        = string
   default     = "n2-standard-4"
-}
-
-variable "min_cpu_platform" {
-  description = "Minimum CPU platform required for nested virtualization."
-  type        = string
-  default     = "Intel Cascade Lake"
 }
 
 variable "image" {
@@ -58,19 +52,18 @@ variable "network" {
 }
 
 variable "ssh_source_ranges" {
-  description = "CIDR blocks allowed to SSH to the instance."
+  description = "CIDR blocks allowed to SSH to the instance. Defaults to Google's IAP TCP forwarding range."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+  default     = ["35.235.240.0/20"]
+
+  validation {
+    condition     = !contains(var.ssh_source_ranges, "0.0.0.0/0")
+    error_message = "Do not expose SSH to the entire internet. Use the IAP range or a trusted /32 address."
+  }
 }
 
 variable "enable_oslogin" {
   description = "Whether to enable OS Login metadata."
   type        = bool
-  default     = false
-}
-
-variable "username" {
-  description = "Linux username that should receive kubeconfig."
-  type        = string
-  default     = "ubuntu"
+  default     = true
 }
