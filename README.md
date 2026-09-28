@@ -3,9 +3,10 @@
 Hands-on security labs, infrastructure, and small utilities that support
 [CloudSecBurrito](https://cloudsecburrito.com/) articles and experiments.
 
-The goal is simple:
+The split is intentional:
 
-> Do fun stuff, show the real commands, and verify what actually happens.
+> The repository holds the artifacts. The blog tells the story and walks
+> through the lab.
 
 ## What's Here
 
@@ -17,8 +18,9 @@ The goal is simple:
 | [`kata-microagent`](./kata-microagent/) | Explore lightweight process monitoring beside a Kata workload | Proof of concept | High: unauthenticated receiver and heuristic detections |
 | [`raw-k8s-admission-webhooks`](./raw-k8s-admission-webhooks/) | Build a validating admission webhook without a policy framework | Educational demo | Medium: cluster-wide admission behavior |
 
-Each project is self-contained. Read its README before creating infrastructure
-or applying Kubernetes manifests.
+Each project README describes the checked-in artifacts, dependencies, and risk
+boundary. When a project has a hands-on walkthrough, the README points to the
+related CloudSecBurrito article instead of duplicating its procedure.
 
 ## Repository Philosophy
 
@@ -29,8 +31,8 @@ small, inspectable experiments designed to answer questions such as:
 - What security boundary does it provide?
 - Where does it fail or create an observability gap?
 
-That means the repository favors minimal abstractions, real commands,
-reproducible outcomes, and honest documentation of limitations.
+That means the repository favors minimal abstractions, inspectable artifacts,
+reproducible inputs, and honest documentation of limitations.
 
 ## Safety
 
@@ -43,8 +45,8 @@ of the experiment, not recommended defaults.
 - Review manifests and scripts before running them.
 - Never commit credentials, kubeconfigs, generated certificates, or Terraform
   state.
-- Follow each project's cleanup instructions to avoid lingering access or cloud
-  charges.
+- Read the related walkthrough's cleanup section before creating resources so
+  you do not leave access, cluster-wide controls, or cloud charges behind.
 
 ## Container Images
 
@@ -67,9 +69,13 @@ as a convenience for short-lived experiments only.
 ## Blog Relationship
 
 These projects support writing at [CloudSecBurrito](https://cloudsecburrito.com/).
+The blog owns setup instructions, command sequences, expected output, and the
+educational narrative. This repository documents what each artifact is, why it
+exists, and the risks or limitations that remain.
+
 Lab results should only be described as verified when the corresponding commands
-were run and their observed behavior was recorded. Project READMEs should link
-to the related article when one is available.
+were run and their observed behavior was recorded. Project READMEs link to the
+related article when one is available.
 
 ## Development and AI Assistance
 
