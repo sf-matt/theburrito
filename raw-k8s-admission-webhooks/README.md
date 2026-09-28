@@ -5,146 +5,55 @@ It denies creation of Pods whose names contain `badpod` and allows other Pod
 creation requests.
 
 This is an educational demonstration of the admission request and response
-flow. It is not a production webhook.
+flow, not a production webhook.
 
-## Prerequisites
+## Related Walkthrough
 
-- Docker or another OCI-compatible image builder
-- A container registry accessible by the cluster
-- `kubectl` access to an isolated test cluster
-- OpenSSL and a shell with `base64`
+- [Control Issues: Tales of Kubernetes Admission](https://cloudsecburrito.com/control-issues-tales-of-kubernetes-admission/)
 
-The example installs resources in the `default` namespace and registers a
-cluster-scoped webhook configuration. Review the manifests before continuing.
+The article contains the deployment procedure, request-flow explanation,
+validation steps, expected results, and cleanup commands. This README documents
+the supporting implementation and its safety boundary.
 
-## Project Structure
+## What Is Here
 
-```text
-raw-k8s-admission-webhooks/
-├── certs/
-│   └── generate-certs.sh
-├── manifests/
-│   ├── bad-pod.yaml
-│   ├── deployment.yaml
-│   ├── service.yaml
-│   └── webhook.yaml
-├── server/
-│   ├── app.py
-│   ├── Dockerfile
-│   └── requirements.txt
-└── README.md
-```
+| Path | Purpose |
+| --- | --- |
+| `server/app.py` | Handles AdmissionReview requests and returns the allow or deny decision. |
+| `server/test_app.py` | Exercises the webhook response contract. |
+| `server/Dockerfile` | Packages the Flask webhook server. |
+| `certs/generate-certs.sh` | Generates local TLS material for the in-cluster Service name. |
+| `manifests/deployment.yaml` | Runs the webhook server in the `default` namespace. |
+| `manifests/service.yaml` | Exposes the server to the Kubernetes API server. |
+| `manifests/webhook.yaml` | Registers the cluster-scoped validating webhook. |
+| `manifests/bad-pod.yaml` | Provides the intentionally denied test resource. |
 
-## 1. Generate TLS Certificates
+The published image is
+`ghcr.io/sf-matt/raw-k8s-admission-webhook`. Its workflow builds runnable
+manifests for `linux/amd64` and `linux/arm64` and publishes an immutable
+short-SHA tag alongside `latest`.
 
-From this directory, run:
+## Behavior and Trust Boundary
 
-```bash
-./certs/generate-certs.sh
-```
+The webhook handles Pod `CREATE` operations. It returns an AdmissionReview with
+the request UID and rejects names containing `badpod`. The registration uses
+`failurePolicy: Fail`, so an installed but unavailable webhook can block
+matching Pod creation.
 
-The script creates:
+Generated certificates and private keys are local artifacts and must remain
+untracked. The CA value in the webhook manifest is a placeholder that the
+walkthrough replaces for a lab run.
 
-- `server/cert.pem`
-- `server/key.pem`
-- `ca.crt`
+## Risks and Limitations
 
-These generated files are ignored by Git. The script also prints the
-base64-encoded CA certificate needed by the webhook configuration.
-
-## 2. Get the Image
-
-The project publishes one multi-architecture image for `linux/amd64` and
-`linux/arm64` to GHCR:
-
-```bash
-docker pull ghcr.io/sf-matt/raw-k8s-admission-webhook:latest
-```
-
-The checked-in Deployment uses this image. The publishing workflow also creates
-an immutable `sha-<commit>` tag; prefer that tag or its digest when reproducing
-a specific run.
-
-To build it locally instead:
-
-```bash
-docker build -t raw-k8s-admission-webhook:local ./server
-```
-
-## 3. Create the TLS Secret
-
-The Deployment mounts this Secret at `/app/certs`, which matches the paths used
-by the Flask server:
-
-```bash
-kubectl create secret generic webhook-certs \
-  --from-file=cert.pem=server/cert.pem \
-  --from-file=key.pem=server/key.pem \
-  --namespace default
-```
-
-## 4. Deploy the Server
-
-```bash
-kubectl apply -f manifests/deployment.yaml
-kubectl apply -f manifests/service.yaml
-kubectl rollout status deployment/webhook --namespace default
-```
-
-## 5. Register the Webhook
-
-Replace `<REPLACE_WITH_BASE64_CA>` in `manifests/webhook.yaml` with the CA value
-printed by the certificate script, then run:
-
-```bash
-kubectl apply -f manifests/webhook.yaml
-```
-
-The configuration uses `failurePolicy: Fail`. If the webhook is registered but
-unavailable, matching Pod creation requests can fail. Keep a separate terminal
-available for cleanup.
-
-## 6. Verify the Behavior
-
-```bash
-kubectl apply -f manifests/bad-pod.yaml
-```
-
-Expected result:
-
-```text
-Error from server: admission webhook "deny.badpod.webhook.dev" denied the request: Pod name 'badpod-test' is not allowed.
-```
-
-Confirm that another Pod name is allowed before treating the demo as verified.
-
-```bash
-kubectl run goodpod \
-  --image=busybox:1.36.1 \
-  --restart=Never \
-  -- sleep 3600
-kubectl get pod goodpod
-```
-
-## Cleanup
-
-Remove the cluster-scoped webhook first so it cannot block later Pod creation:
-
-```bash
-kubectl delete -f manifests/webhook.yaml
-kubectl delete -f manifests/deployment.yaml
-kubectl delete -f manifests/service.yaml
-kubectl delete pod goodpod --ignore-not-found
-kubectl delete secret webhook-certs --namespace default
-```
-
-## Limitations and Security Notes
-
-- The server performs only a small name check and assumes a valid AdmissionReview
-  request. Malformed requests can produce an application error.
-- TLS material is generated locally and injected through a Kubernetes Secret;
-  it is not baked into the container image.
-- The current container runs as root and uses Flask's development server.
-- The example has no availability design, certificate rotation, metrics,
+- The admission rule is only a small name check and is not a meaningful
+  production policy.
+- Malformed AdmissionReview requests can produce an application error.
+- The container runs as root and uses Flask's development server.
+- The example has no high-availability design, certificate rotation, metrics,
   resource limits, or hardened Pod security context.
-- Deploy only in a disposable or isolated cluster.
+- The resources use the `default` namespace and register a cluster-scoped
+  webhook. Use only an isolated or disposable cluster.
+- Cleanup must remove the `ValidatingWebhookConfiguration` before the backing
+  Deployment, Service, Secret, and test Pod so the fail-closed webhook cannot
+  interfere with later Pod creation.

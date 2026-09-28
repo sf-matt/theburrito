@@ -23,10 +23,17 @@
 
 ## Documentation
 
-- Every project directory should have a README covering purpose, prerequisites,
-  setup, expected results, limitations, risks, and cleanup.
-- Link a project to its CloudSecBurrito article when the article exists. Do not
-  invent article URLs or lab evidence.
+- Keep repository documentation separate from the educational walkthroughs.
+  Project READMEs should describe purpose, checked-in artifacts, dependencies,
+  design boundaries, limitations, risks, and cleanup implications.
+- Do not duplicate a blog article's setup sequence, executable commands,
+  terminal transcript, expected output, or step-by-step validation in a project
+  README. Put that material in the related CloudSecBurrito article.
+- Link a project to every CloudSecBurrito article that directly uses it when the
+  article exists. Verify the public URL; do not invent article URLs or lab
+  evidence.
+- Keep safety-critical warnings close to the affected artifact even when the
+  detailed cleanup procedure lives in the article.
 - Keep the root README's project inventory and maturity descriptions current.
 - Preserve the author's conversational voice. Prefer factual, scoped edits over
   style-only rewrites.
