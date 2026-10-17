@@ -13,17 +13,14 @@ spec:
     - name: app
       image: debian:stable-slim
       imagePullPolicy: Always
-      command: ["/bin/sh", "-c"]
-      args:
-        - |
-          sleep 3600
+      command: ["sleep", "3600"]
 
     - name: sensor
       image: sfmatt/kata-sensor:latest
       imagePullPolicy: Always
       env:
         - name: RECEIVER_URL
-          value: "http://kata-receiver.kata-demo.svc.cluster.local:8080/events"
+          value: "http://kata-receiver.kata-demo.svc.cluster.local/events"
         - name: POLL_INTERVAL
           value: "2"
         - name: HEARTBEAT_INTERVAL
