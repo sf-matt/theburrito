@@ -22,9 +22,10 @@ application container
 sensor container -- HTTP events --> receiver Service --> in-memory event list
 ```
 
-The sensor polls `/proc`, compares processes with a small rule set and startup
-executable baseline, and emits JSON events. The receiver keeps recent events in
-memory and exposes a small HTML view and JSON endpoints.
+The sensor polls `/proc`, compares processes with a small rule set and an
+executable-path baseline built from the sensor image at startup, and emits JSON
+events. The receiver keeps recent events in memory and exposes a small HTML view
+and JSON endpoints.
 
 ## What Is Here
 
@@ -40,10 +41,11 @@ the `kata-demo` namespace.
 
 ## Detection Boundary
 
-The rules focus on a small group of high-signal behaviors such as unexpected
-shells, sensitive-file access, credential discovery, package-manager execution,
-newly introduced executables, and remote-execution utilities. A match provides
-context for investigation; it does not prove compromise or causality.
+The rules match selected process names and command-line patterns for unexpected
+shells, sensitive paths, credential discovery, package-manager execution, and
+remote-execution utilities. The sensor also flags executable paths absent from
+its own startup baseline. A match provides context for investigation; it does
+not prove compromise or causality.
 
 ## Risks and Limitations
 
@@ -51,6 +53,9 @@ context for investigation; it does not prove compromise or causality.
   visibility.
 - The sensor sees the shared process namespace for its Pod, not other Pods or
   the Kubernetes node.
+- The application and sensor have separate root filesystems. An executable path
+  missing from the sensor baseline is a heuristic, not proof that the binary
+  was added to the application container after startup.
 - The receiver is unauthenticated, uses plain HTTP, and stores data only in
   memory.
 - The checked-in receiver is a NodePort and may be reachable beyond the

@@ -112,7 +112,7 @@ def build_post_start_binary_event(pid: str, proc_name: str, cmdline: str, exe_pa
             "exe_path": exe_path,
             "matched_on": "exe_path_not_in_baseline",
             "matched_value": exe_path,
-            "reason": "binary executed that was not present when workload started",
+            "reason": "executable path absent from sensor startup baseline",
         }
     )
     return event
