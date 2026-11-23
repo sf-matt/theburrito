@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloudsecburrito-kubernetes-security-agent"
+version = "0.1.0"
+description = "Educational read-only agent for investigating privileged Kubernetes Pods"
+requires-python = ">=3.12"
+dependencies = [
+  "kubernetes==37.0.1",
+  "openai==3.46.0",
+  "python-dotenv==1.2.4",
+]
+
+[project.optional-dependencies]
+test = ["pytest==9.2.0"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+
+[tool.setuptools]
+packages = ["agent"]
